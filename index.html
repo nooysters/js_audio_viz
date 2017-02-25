@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<head>
+</head>
+<body>
+  <audio id='audio' controls>
+    <source src="crystal.mp3" type="audio/mpeg">
+    Your browser does not support the audio tag.
+  </audio>
+
+  <canvas id="aCanvas" width="800" height="800"></canvas>
+
+  <script>
+    // visual
+    var c = document.getElementById("aCanvas");
+    var ctx = c.getContext("2d");
+    ctx.strokeStyle='#000';
+    ctx.beginPath();
+    ctx.fillStyle='black';
+    var cx = c.width/2;
+    var cy = c.height/2;
+    var radius=600
+    var t=1;
+    var a=5;
+    var curX = preX = cx-Math.cos(2 * Math.PI)*r
+    var curY = preY = cy-Math.sin(2 * Math.PI)*r
+    var threshold =.2;
+    var gain = 1;
+    var r,g,b;
+    var fps = 30;
+
+    //audio
+    var audio = document.getElementById('audio');
+    audio.crossOrigin = "anonymous";
+    var actx = new AudioContext();
+    var audioSrc = actx.createMediaElementSource(audio);
+    audioSrc.connect(actx.destination)
+    var analyser = actx.createAnalyser();
+    audioSrc.connect(analyser);
+    var frequencyData = new Uint8Array(analyser.frequencyBinCount);
+
+    function renderFrame() {
+      fpsInterval = 1000 / fps;
+      then = Date.now();
+      startTime = then;
+      animate()
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      now = Date.now();
+      elapsed = now - then;
+      if (elapsed > fpsInterval) {
+        then = now - (elapsed % fpsInterval);
+        analyser.getByteFrequencyData(frequencyData);
+        draw(frequencyData);
+      }
+    }
+    var audioPlay = audio.play()
+    if (audioPlay !== undefined) {
+      audioPlay.then(function() {
+        renderFrame();
+      }).catch(function(error) {
+        console.log(error)
+      });
+    }
+
+    ctx.moveTo(cx, cy)
+
+    var draw = function(frequencyData) {
+      beat(frequencyData);
+      ctx.moveTo(cx, cy);
+      ctx.clearRect(0, 0, c.width, c.height);
+      ctx.beginPath();
+
+      for(theta=(2 * Math.PI); theta >= -(2*Math.PI); theta -= (Math.PI/4) ) {
+        curX = cx-Math.cos(theta) * radius * Math.cos(gain)*Math.sin(gain)
+        curY = cy-Math.sin(theta) * radius * Math.cos(gain)*Math.sin(gain)
+        ctx.bezierCurveTo(preX, preY, curX, curY, cx, cy)
+
+        preX = curX;
+        preY = curY;
+      }
+
+      r = Math.round(Math.abs( Math.cos(gain) * 255 ));
+      g = 255;
+      b = Math.floor(255 % Math.cos(gain));
+
+      ctx.fillStyle = "rgb("+r+", "+g+", "+b+")";
+      ctx.fill();
+    }
+
+    var beat = function(arr) {
+      var diff = sumofsound(arr);
+      if (Math.abs(gain - diff) > threshold) {
+        gain = diff
+      }
+    }
+
+    var sumofsound = function(arr) {
+      var sum = arr.reduce(function(memo, input) {
+        return memo + input
+      }, 0)
+      return sum/arr.length
+    }
+
+  </script>
+</body>
+</html>
